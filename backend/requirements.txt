@@ -1,0 +1,22 @@
+# Core FastAPI dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Machine Learning
+sentence-transformers==2.7.0
+numpy==1.24.3
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+
+# NLTK for WordNet hints
+nltk==3.8.1
+
+# HTTP requests (for external APIs)
+requests==2.31.0
+httpx==0.25.2
+
+# Environment variables
+python-dotenv==1.0.0

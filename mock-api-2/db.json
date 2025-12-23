@@ -1,0 +1,349 @@
+{
+  "hints": [
+    {
+      "id": 1,
+      "type": "first_letter",
+      "name": "First Letter Reveal",
+      "description": "Shows the first letter of the target word",
+      "cost_points": 5,
+      "icon": "🔤",
+      "priority": 1,
+      "example": "Target: MOUNTAIN → Hint: First letter is M"
+    },
+    {
+      "id": 2,
+      "type": "last_letter",
+      "name": "Last Letter Reveal",
+      "description": "Shows the last letter of the target word",
+      "cost_points": 5,
+      "icon": "🔡",
+      "priority": 2,
+      "example": "Target: MOUNTAIN → Hint: Last letter is N"
+    },
+    {
+      "id": 3,
+      "type": "word_length",
+      "name": "Word Length",
+      "description": "Reveals how many letters in the word",
+      "cost_points": 3,
+      "icon": "📏",
+      "priority": 3,
+      "example": "Target: MOUNTAIN → Hint: Word has 8 letters"
+    },
+    {
+      "id": 4,
+      "type": "category",
+      "name": "Category Hint",
+      "description": "Reveals the semantic category of the word",
+      "cost_points": 10,
+      "icon": "📁",
+      "priority": 4,
+      "example": "Target: MOUNTAIN → Hint: It's a natural feature/place"
+    },
+    {
+      "id": 5,
+      "type": "definition",
+      "name": "Dictionary Definition",
+      "description": "Shows a partial definition without the word",
+      "cost_points": 15,
+      "icon": "📖",
+      "priority": 5,
+      "example": "Target: MOUNTAIN → Hint: A large natural elevation of earth"
+    },
+    {
+      "id": 6,
+      "type": "synonym",
+      "name": "Related Word",
+      "description": "Shows a synonym or closely related word",
+      "cost_points": 12,
+      "icon": "🔗",
+      "priority": 6,
+      "example": "Target: MOUNTAIN → Hint: Related to 'peak', 'summit'"
+    },
+    {
+      "id": 7,
+      "type": "vowels",
+      "name": "Vowel Pattern",
+      "description": "Shows which positions contain vowels",
+      "cost_points": 8,
+      "icon": "🎯",
+      "priority": 7,
+      "example": "Target: MOUNTAIN → Hint: Vowels at positions 2, 5, 7"
+    },
+    {
+      "id": 8,
+      "type": "rhyme",
+      "name": "Rhyming Word",
+      "description": "Provides a word that rhymes with target",
+      "cost_points": 10,
+      "icon": "🎵",
+      "priority": 8,
+      "example": "Target: MOUNTAIN → Hint: Rhymes with 'fountain'"
+    },
+    {
+      "id": 9,
+      "type": "letter_count",
+      "name": "Common Letter",
+      "description": "Reveals the most common letter in the word",
+      "cost_points": 6,
+      "icon": "🔢",
+      "priority": 9,
+      "example": "Target: MOUNTAIN → Hint: Letter 'N' appears twice"
+    },
+    {
+      "id": 10,
+      "type": "partial_reveal",
+      "name": "Middle Letters",
+      "description": "Shows 1-2 letters from the middle",
+      "cost_points": 20,
+      "icon": "✨",
+      "priority": 10,
+      "example": "Target: MOUNTAIN → Hint: M_U_T_ _N"
+    }
+  ],
+  "achievements": [
+    {
+      "id": 1,
+      "name": "First Steps",
+      "description": "Complete your first game",
+      "badge_icon": "🎮",
+      "badge_color": "#4CAF50",
+      "points": 10,
+      "rarity": "common",
+      "unlock_condition": "games_played >= 1"
+    },
+    {
+      "id": 2,
+      "name": "Winner!",
+      "description": "Win your first game",
+      "badge_icon": "🏆",
+      "badge_color": "#FFD700",
+      "points": 25,
+      "rarity": "common",
+      "unlock_condition": "games_won >= 1"
+    },
+    {
+      "id": 3,
+      "name": "Speed Demon",
+      "description": "Win a game in under 5 guesses",
+      "badge_icon": "⚡",
+      "badge_color": "#FF9800",
+      "points": 50,
+      "rarity": "rare",
+      "unlock_condition": "min_guesses <= 5"
+    },
+    {
+      "id": 4,
+      "name": "Mind Reader",
+      "description": "Guess the word on first try",
+      "badge_icon": "🔮",
+      "badge_color": "#9C27B0",
+      "points": 100,
+      "rarity": "epic",
+      "unlock_condition": "first_try_win = true"
+    },
+    {
+      "id": 5,
+      "name": "Persistent",
+      "description": "Play 10 games",
+      "badge_icon": "💪",
+      "badge_color": "#2196F3",
+      "points": 30,
+      "rarity": "uncommon",
+      "unlock_condition": "games_played >= 10"
+    },
+    {
+      "id": 6,
+      "name": "Champion",
+      "description": "Win 25 games",
+      "badge_icon": "👑",
+      "badge_color": "#FFD700",
+      "points": 100,
+      "rarity": "epic",
+      "unlock_condition": "games_won >= 25"
+    },
+    {
+      "id": 7,
+      "name": "No Hints Needed",
+      "description": "Win a game without using any hints",
+      "badge_icon": "🧠",
+      "badge_color": "#00BCD4",
+      "points": 50,
+      "rarity": "rare",
+      "unlock_condition": "hints_used = 0 AND won = true"
+    },
+    {
+      "id": 8,
+      "name": "Perfect Score",
+      "description": "Achieve a score of 100",
+      "badge_icon": "💯",
+      "badge_color": "#E91E63",
+      "points": 75,
+      "rarity": "rare",
+      "unlock_condition": "score = 100"
+    },
+    {
+      "id": 9,
+      "name": "Semantic Master",
+      "description": "Achieve 95%+ similarity before winning",
+      "badge_icon": "🎓",
+      "badge_color": "#673AB7",
+      "points": 60,
+      "rarity": "rare",
+      "unlock_condition": "best_similarity >= 0.95"
+    },
+    {
+      "id": 10,
+      "name": "Streak Master",
+      "description": "Win 5 games in a row",
+      "badge_icon": "🔥",
+      "badge_color": "#FF5722",
+      "points": 80,
+      "rarity": "epic",
+      "unlock_condition": "win_streak >= 5"
+    },
+    {
+      "id": 11,
+      "name": "Category Expert",
+      "description": "Win 10 games in the same category",
+      "badge_icon": "📚",
+      "badge_color": "#795548",
+      "points": 40,
+      "rarity": "uncommon",
+      "unlock_condition": "category_wins[any] >= 10"
+    },
+    {
+      "id": 12,
+      "name": "Legendary",
+      "description": "Win 100 games",
+      "badge_icon": "⭐",
+      "badge_color": "#FFD700",
+      "points": 200,
+      "rarity": "legendary",
+      "unlock_condition": "games_won >= 100"
+    }
+  ],
+  "powerups": [
+    {
+      "id": 1,
+      "name": "Double Points",
+      "description": "Earn 2x points for the next game",
+      "icon": "💰",
+      "duration_games": 1,
+      "cost": 50,
+      "effect": "score_multiplier = 2.0"
+    },
+    {
+      "id": 2,
+      "name": "Free Hints",
+      "description": "Get 3 free hints for the next game",
+      "icon": "🎁",
+      "duration_games": 1,
+      "cost": 30,
+      "effect": "free_hints = 3"
+    },
+    {
+      "id": 3,
+      "name": "Extra Time",
+      "description": "Add 60 seconds to time limit",
+      "icon": "⏱️",
+      "duration_games": 1,
+      "cost": 25,
+      "effect": "time_bonus = 60"
+    },
+    {
+      "id": 4,
+      "name": "Lucky Strike",
+      "description": "Increase similarity scores by 10%",
+      "icon": "🍀",
+      "duration_games": 1,
+      "cost": 40,
+      "effect": "similarity_boost = 0.1"
+    },
+    {
+      "id": 5,
+      "name": "Skip Word",
+      "description": "Skip current word and get a new one",
+      "icon": "⏭️",
+      "duration_games": 0,
+      "cost": 20,
+      "effect": "immediate_skip"
+    }
+  ],
+  "hint_combos": [
+    {
+      "id": 1,
+      "name": "Starter Pack",
+      "description": "First letter + word length",
+      "hints": [1, 3],
+      "discount": 2,
+      "total_cost": 6
+    },
+    {
+      "id": 2,
+      "name": "Letter Bundle",
+      "description": "First + last letter",
+      "hints": [1, 2],
+      "discount": 3,
+      "total_cost": 7
+    },
+    {
+      "id": 3,
+      "name": "Context Clues",
+      "description": "Category + synonym",
+      "hints": [4, 6],
+      "discount": 5,
+      "total_cost": 17
+    },
+    {
+      "id": 4,
+      "name": "Ultimate Guide",
+      "description": "Definition + vowel pattern + first letter",
+      "hints": [5, 7, 1],
+      "discount": 8,
+      "total_cost": 20
+    }
+  ],
+  "leaderboard_badges": [
+    {
+      "id": 1,
+      "rank": "Novice",
+      "min_score": 0,
+      "max_score": 500,
+      "icon": "🥉",
+      "color": "#CD7F32"
+    },
+    {
+      "id": 2,
+      "rank": "Apprentice",
+      "min_score": 501,
+      "max_score": 1500,
+      "icon": "🥈",
+      "color": "#C0C0C0"
+    },
+    {
+      "id": 3,
+      "rank": "Expert",
+      "min_score": 1501,
+      "max_score": 3000,
+      "icon": "🥇",
+      "color": "#FFD700"
+    },
+    {
+      "id": 4,
+      "rank": "Master",
+      "min_score": 3001,
+      "max_score": 5000,
+      "icon": "💎",
+      "color": "#00BCD4"
+    },
+    {
+      "id": 5,
+      "rank": "Grandmaster",
+      "min_score": 5001,
+      "max_score": null,
+      "icon": "👑",
+      "color": "#9C27B0"
+    }
+  ]
+}

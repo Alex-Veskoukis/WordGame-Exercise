@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Word Guessing Game</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .player-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 101, 101, 0.4);
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .hint-box {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            background: #fefcbf;
+            color: #744210;
+            border: 1px solid #f6e05e;
+            font-weight: 600;
+        }
+        
+        .charts-container {
+            margin-top: 30px;
+        }
+        
+        .chart {
+            margin-bottom: 30px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+        
+        .chart h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .leaderboard {
+            margin-top: 30px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            background: #f7fafc;
+        }
+
+        .leaderboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .leaderboard-header h3 {
+            color: #2d3748;
+            margin: 0;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .leaderboard table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .leaderboard th,
+        .leaderboard td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .leaderboard th {
+            background: #edf2f7;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .leaderboard tr:last-child td {
+            border-bottom: none;
+        }
+
+        .leaderboard .rank {
+            width: 40px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .leaderboard .empty {
+            text-align: center;
+            color: #718096;
+        }
+
+        .btn-small {
+            padding: 8px 14px;
+            font-size: 14px;
+            border-radius: 8px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .guess-history {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+        
+        .guess-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .guess-word {
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .guess-score {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .score-high {
+            background: #48bb78;
+        }
+        
+        .score-medium {
+            background: #ed8936;
+        }
+        
+        .score-low {
+            background: #f56565;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Semantic Word Game</h1>
+        <p class="subtitle">Guess the word using semantic similarity!</p>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="guessCount">0</div>
+                <div class="stat-label">Guesses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="bestScore">-</div>
+                <div class="stat-label">Best Score</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="wordLength">-</div>
+                <div class="stat-label">Word Length</div>
+            </div>
+        </div>
+        
+        <div id="status" class="status hidden"></div>
+        <div id="hintBox" class="hint-box hidden"></div>
+        
+        <div class="player-controls">
+            <input type="text" id="playerNameInput" placeholder="Your name" autocomplete="name">
+            <button class="btn-success" id="newGameBtn">New Game</button>
+        </div>
+
+        <div class="game-controls">
+            <input type="text" id="guessInput" placeholder="Type your guess..." disabled>
+            <button class="btn-primary" id="guessBtn" disabled>Submit Guess</button>
+            <button class="btn-warning" id="hintBtn" disabled>Hint</button>
+            <button class="btn-secondary" id="giveUpBtn" disabled>Give Up</button>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart">
+                <h3>Latest Similarity Score</h3>
+                <div id="currentScorePlot"></div>
+            </div>
+            
+            <div class="chart">
+                <h3>All Guesses Progress</h3>
+                <div id="allGuessesPlot"></div>
+            </div>
+        </div>
+        
+        <div class="guess-history hidden" id="guessHistory">
+            <h3 style="margin-bottom: 10px;">Guess History</h3>
+            <div id="historyList"></div>
+        </div>
+
+        <div class="leaderboard">
+            <div class="leaderboard-header">
+                <h3>Leaderboard</h3>
+                <button class="btn-primary btn-small" id="refreshLeaderboardBtn">Refresh</button>
+            </div>
+            <div class="leaderboard-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Player</th>
+                            <th>Best Score</th>
+                            <th>Win Rate</th>
+                            <th>Games</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardBody">
+                        <tr>
+                            <td class="empty" colspan="5">Loading leaderboard...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let allGuesses = [];
+        let activePlayerName = '';
+        
+        // UI Elements
+        const guessInput = document.getElementById('guessInput');
+        const guessBtn = document.getElementById('guessBtn');
+        const giveUpBtn = document.getElementById('giveUpBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const status = document.getElementById('status');
+        const hintBox = document.getElementById('hintBox');
+        const guessCount = document.getElementById('guessCount');
+        const bestScore = document.getElementById('bestScore');
+        const wordLength = document.getElementById('wordLength');
+        const guessHistory = document.getElementById('guessHistory');
+        const historyList = document.getElementById('historyList');
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        const refreshLeaderboardBtn = document.getElementById('refreshLeaderboardBtn');
+        
+        function setGameActive(active) {
+            guessInput.disabled = !active;
+            guessBtn.disabled = !active;
+            hintBtn.disabled = !active;
+            giveUpBtn.disabled = !active;
+            playerNameInput.disabled = active;
+            if (!active) {
+                clearHint();
+            }
+        }
+
+        // Initialize empty plots
+        function initPlots() {
+            Plotly.newPlot('currentScorePlot', [{
+                type: 'bar',
+                x: ['Similarity'],
+                y: [0],
+                marker: { color: '#667eea' }
+            }], {
+                yaxis: { range: [-1, 1], title: 'Cosine Similarity' },
+                margin: { t: 10, b: 40, l: 60, r: 20 },
+                height: 250
+            }, {displayModeBar: false});
+            
+            Plotly.newPlot('allGuessesPlot', [{
+                type: 'scatter',
+                mode: 'lines+markers',
+                x: [],
+                y: [],
+                marker: { 
+                    size: 10,
+                    color: [],
+                    colorscale: 'RdYlGn',
+                    showscale: true,
+                    cmin: -1,
+                    cmax: 1
+                },
+                line: { color: '#667eea', width: 2 }
+            }], {
+                yaxis: { range: [-1, 1], title: 'Cosine Similarity' },
+                xaxis: { title: 'Guess Number' },
+                margin: { t: 10, b: 60, l: 60, r: 80 },
+                height: 300
+            }, {displayModeBar: false});
+        }
+        
+        // Update current score plot
+        function updateCurrentScorePlot(similarity) {
+            const color = similarity > 0.7 ? '#48bb78' : similarity > 0.3 ? '#ed8936' : '#f56565';
+            
+            Plotly.react('currentScorePlot', [{
+                type: 'bar',
+                x: ['Similarity'],
+                y: [similarity],
+                marker: { color: color },
+                text: [similarity.toFixed(4)],
+                textposition: 'outside'
+            }], {
+                yaxis: { range: [-1, 1], title: 'Cosine Similarity' },
+                margin: { t: 30, b: 40, l: 60, r: 20 },
+                height: 250
+            }, {displayModeBar: false});
+        }
+        
+        // Update all guesses plot
+        function updateAllGuessesPlot(guesses) {
+            const x = guesses.map((_, i) => i + 1);
+            const y = guesses.map(g => g.similarity);
+            
+            Plotly.react('allGuessesPlot', [{
+                type: 'scatter',
+                mode: 'lines+markers',
+                x: x,
+                y: y,
+                text: guesses.map(g => g.word),
+                marker: { 
+                    size: 10,
+                    color: y,
+                    colorscale: 'RdYlGn',
+                    showscale: true,
+                    cmin: -1,
+                    cmax: 1,
+                    colorbar: { title: 'Similarity' }
+                },
+                line: { color: '#667eea', width: 2 },
+                hovertemplate: '<b>%{text}</b><br>Score: %{y:.4f}<extra></extra>'
+            }], {
+                yaxis: { range: [-1, 1], title: 'Cosine Similarity' },
+                xaxis: { title: 'Guess Number' },
+                margin: { t: 10, b: 60, l: 60, r: 80 },
+                height: 300
+            }, {displayModeBar: false});
+        }
+        
+        // Update guess history
+        function updateGuessHistory(guesses) {
+            if (guesses.length === 0) {
+                guessHistory.classList.add('hidden');
+                return;
+            }
+            
+            guessHistory.classList.remove('hidden');
+            historyList.innerHTML = '';
+            
+            // Show in reverse order (latest first)
+            guesses.slice().reverse().forEach(guess => {
+                const item = document.createElement('div');
+                item.className = 'guess-item';
+                
+                const word = document.createElement('span');
+                word.className = 'guess-word';
+                word.textContent = guess.word;
+                
+                const score = document.createElement('span');
+                score.className = 'guess-score';
+                const sim = guess.similarity;
+                score.className += sim > 0.7 ? ' score-high' : sim > 0.3 ? ' score-medium' : ' score-low';
+                score.textContent = sim.toFixed(4);
+                
+                item.appendChild(word);
+                item.appendChild(score);
+                historyList.appendChild(item);
+            });
+        }
+        
+        // Update stats
+        function updateStats(guesses) {
+            guessCount.textContent = guesses.length;
+            
+            if (guesses.length > 0) {
+                const best = Math.max(...guesses.map(g => g.similarity));
+                bestScore.textContent = best.toFixed(4);
+            } else {
+                bestScore.textContent = '-';
+            }
+        }
+        
+        // Show status message
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+        }
+        
+        // Hide status
+        function hideStatus() {
+            status.classList.add('hidden');
+        }
+
+        function showHint(message, count) {
+            hintBox.textContent = `Hint ${count}: ${message}`;
+            hintBox.classList.remove('hidden');
+        }
+
+        function clearHint() {
+            hintBox.textContent = '';
+            hintBox.classList.add('hidden');
+        }
+
+        function setLeaderboardMessage(message) {
+            leaderboardBody.innerHTML = '';
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 5;
+            cell.className = 'empty';
+            cell.textContent = message;
+            row.appendChild(cell);
+            leaderboardBody.appendChild(row);
+        }
+
+        function updateLeaderboard(entries) {
+            if (!entries || entries.length === 0) {
+                setLeaderboardMessage('No leaderboard data yet.');
+                return;
+            }
+
+            leaderboardBody.innerHTML = '';
+            entries.forEach((entry, index) => {
+                const row = document.createElement('tr');
+
+                const rank = document.createElement('td');
+                rank.className = 'rank';
+                rank.textContent = index + 1;
+                row.appendChild(rank);
+
+                const player = document.createElement('td');
+                player.textContent = entry.player_name;
+                row.appendChild(player);
+
+                const best = document.createElement('td');
+                best.textContent = entry.best_score;
+                row.appendChild(best);
+
+                const winRate = document.createElement('td');
+                const winValue = typeof entry.win_rate === 'number' ? entry.win_rate.toFixed(1) : entry.win_rate;
+                winRate.textContent = `${winValue}%`;
+                row.appendChild(winRate);
+
+                const games = document.createElement('td');
+                games.textContent = entry.total_games;
+                row.appendChild(games);
+
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        async function fetchLeaderboard() {
+            setLeaderboardMessage('Loading leaderboard...');
+            try {
+                const response = await fetch('/leaderboard?limit=10');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load leaderboard.');
+                }
+                updateLeaderboard(data);
+            } catch (error) {
+                setLeaderboardMessage('Leaderboard unavailable.');
+            }
+        }
+        
+        // Start new game
+        async function startGame() {
+            const playerName = playerNameInput.value.trim();
+            if (!playerName) {
+                showStatus('Please enter your name to start a game.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_name: playerName })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to start a new game.');
+                }
+                
+                allGuesses = [];
+                guessInput.value = '';
+                activePlayerName = playerName;
+                setGameActive(true);
+                
+                wordLength.textContent = data.word_length;
+                
+                initPlots();
+                updateStats([]);
+                updateGuessHistory([]);
+                hideStatus();
+                clearHint();
+                
+                guessInput.focus();
+            } catch (error) {
+                showStatus('Error starting game: ' + error.message, 'error');
+            }
+        }
+        
+        // Make a guess
+        async function makeGuess() {
+            const guess = guessInput.value.trim();
+            
+            if (!guess) {
+                showStatus('Please enter a word!', 'error');
+                return;
+            }
+            if (!activePlayerName) {
+                showStatus('Please start a new game first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_name: activePlayerName, word: guess })
+                });
+                
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to submit guess.');
+                }
+                
+                allGuesses = data.all_guesses;
+                
+                updateCurrentScorePlot(data.similarity);
+                updateAllGuessesPlot(allGuesses);
+                updateStats(allGuesses);
+                updateGuessHistory(allGuesses);
+                
+                if (data.is_correct) {
+                    showStatus(`Congratulations! You guessed it in ${data.guesses_count} tries!`, 'success');
+                    setGameActive(false);
+                    activePlayerName = '';
+                    fetchLeaderboard();
+                } else {
+                    const hint = data.similarity > 0.7 ? 'Very hot!' : 
+                                data.similarity > 0.5 ? 'Getting warmer!' :
+                                data.similarity > 0.3 ? 'Lukewarm...' :
+                                'Cold!';
+                    showStatus(`${hint} Similarity: ${data.similarity.toFixed(4)}`, 'info');
+                }
+                
+                guessInput.value = '';
+                guessInput.focus();
+                
+            } catch (error) {
+                showStatus('Error making guess: ' + error.message, 'error');
+            }
+        }
+
+        // Get a hint
+        async function requestHint() {
+            if (!activePlayerName) {
+                showStatus('Please start a new game first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/hint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_name: activePlayerName })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to get a hint.');
+                }
+
+                showHint(data.hint, data.hints_used);
+            } catch (error) {
+                showStatus('Error getting hint: ' + error.message, 'error');
+            }
+        }
+
+        // Give up
+        async function giveUp() {
+            if (!confirm('Are you sure you want to give up?')) {
+                return;
+            }
+            if (!activePlayerName) {
+                showStatus('Please start a new game first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/reveal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ player_name: activePlayerName })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to reveal word.');
+                }
+                
+                showStatus(`Game Over! The word was: "${data.target_word}" (${data.total_guesses} guesses)`, 'error');
+                
+                setGameActive(false);
+                activePlayerName = '';
+                fetchLeaderboard();
+                
+            } catch (error) {
+                showStatus('Error revealing word: ' + error.message, 'error');
+            }
+        }
+        
+        // Event listeners
+        newGameBtn.addEventListener('click', startGame);
+        guessBtn.addEventListener('click', makeGuess);
+        hintBtn.addEventListener('click', requestHint);
+        giveUpBtn.addEventListener('click', giveUp);
+        refreshLeaderboardBtn.addEventListener('click', fetchLeaderboard);
+        
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                makeGuess();
+            }
+        });
+        
+        // Initialize plots on page load
+        initPlots();
+        setGameActive(false);
+        fetchLeaderboard();
+    </script>
+</body>
+</html>
