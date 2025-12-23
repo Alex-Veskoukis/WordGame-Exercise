@@ -257,7 +257,7 @@ docker compose logs -f
 
 ## Project Structure
 ```
-word-game-complete/
+WordGame/
 ├── README.md
 ├── docker-compose.yaml
 ├── .env.example
