@@ -79,7 +79,6 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-gameuser}:${POSTGRES_PASSWORD:-gamepass123}@postgres:5432/${POSTGRES_DB:-wordgame}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
       - PORT=8000
       - PYTHONUNBUFFERED=1
     volumes:
@@ -162,4 +161,3 @@ networks:
   word-game-network:
     driver: bridge
     name: word-game-network
-
