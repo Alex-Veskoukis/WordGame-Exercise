@@ -1,21 +1,7 @@
 version: '3.8'
 
-# ============================================
-# Semantic Word Game - Docker Compose
-# ============================================
-# This file orchestrates all microservices:
-# 1. Appsmith UI
-# 2. PostgreSQL Database
-# 3. Adminer (Database Admin)
-# 4. Game Backend (FastAPI)
-# 5. Mock API (Custom json-server)
-# 6. MongoDB (Appsmith storage)
-# ============================================
 
 services:
-  # ============================================
-  # 1. APPSMITH UI (User Interface)
-  # ============================================
   appsmith:
     image: appsmith/appsmith-ce:latest
     container_name: word-game-ui
@@ -26,10 +12,8 @@ services:
     volumes:
       - appsmith_data:/appsmith-stacks
     environment:
-      # Security settings
       - APPSMITH_ENCRYPTION_PASSWORD=${APPSMITH_ENCRYPTION_PASSWORD:-change_this_secure_password_123}
       - APPSMITH_ENCRYPTION_SALT=${APPSMITH_ENCRYPTION_SALT:-change_this_secure_salt_456}
-      # Database connection (optional for Appsmith internal data)
       - APPSMITH_MONGODB_URI=mongodb://mongo:27017/appsmith
     depends_on:
       - postgres
@@ -44,9 +28,6 @@ services:
       retries: 3
       start_period: 60s
 
-  # ============================================
-  # 2. POSTGRESQL DATABASE (Main Data Storage)
-  # ============================================
   postgres:
     image: postgres:15-alpine
     container_name: word-game-db
@@ -69,9 +50,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ============================================
-  # 3. ADMINER (Database Admin Interface)
-  # ============================================
   adminer:
     image: adminer:latest
     container_name: word-game-admin
@@ -91,9 +69,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # ============================================
-  # 4. GAME BACKEND (FastAPI + ML)
-  # ============================================
   game-backend:
     build:
       context: ./backend
@@ -103,11 +78,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Database connection
       - DATABASE_URL=postgresql://${POSTGRES_USER:-gameuser}:${POSTGRES_PASSWORD:-gamepass123}@postgres:5432/${POSTGRES_DB:-wordgame}
-      # External API keys
       - GROQ_API_KEY=${GROQ_API_KEY:-}
-      # Server settings
       - PORT=8000
       - PYTHONUNBUFFERED=1
     volumes:
@@ -124,10 +96,6 @@ services:
       retries: 3
       start_period: 60s
 
-  # ============================================
-  # 5. MOCK API (Custom json-server)
-  # ============================================
-  # Custom-built Docker image with hints/achievements data
   mock-api-2:
     build:
       context: ./mock-api-2
@@ -145,10 +113,6 @@ services:
       retries: 3
       start_period: 10s
 
-  # ============================================
-  # MONGODB (for Appsmith internal data)
-  # ============================================
-  # Appsmith requires MongoDB for its own data storage
   mongo:
     image: mongo:6
     container_name: word-game-mongo
@@ -164,7 +128,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # MongoDB replica set initialization
   mongo-init:
     image: mongo:6
     container_name: word-game-mongo-init
@@ -184,9 +147,6 @@ services:
         '
       "
 
-# ============================================
-# VOLUMES (Persistent Data)
-# ============================================
 volumes:
   postgres_data:
     driver: local
@@ -198,48 +158,8 @@ volumes:
     driver: local
     name: word-game-mongo-data
 
-# ============================================
-# NETWORKS
-# ============================================
 networks:
   word-game-network:
     driver: bridge
     name: word-game-network
 
-# ============================================
-# USAGE INSTRUCTIONS
-# ============================================
-# 
-# Start all services:
-#   docker-compose up -d
-#
-# View logs:
-#   docker-compose logs -f
-#   docker-compose logs -f game-backend
-#
-# Stop all services:
-#   docker-compose down
-#
-# Stop and remove volumes (clean slate):
-#   docker-compose down -v
-#
-# Rebuild specific service:
-#   docker-compose up -d --build game-backend
-#
-# Check service status:
-#   docker-compose ps
-#
-# Access services:
-#   - Appsmith UI:        http://localhost
-#   - Game API:           http://localhost:8000
-#   - Database Admin:     http://localhost:8080
-#   - Mock API (Hints): http://localhost:3001
-#
-# Database connection (for Adminer):
-#   System:   PostgreSQL
-#   Server:   postgres
-#   Username: gameuser
-#   Password: gamepass123
-#   Database: wordgame
-#
-# ============================================

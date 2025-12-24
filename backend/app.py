@@ -18,7 +18,7 @@ from datetime import datetime
 
 app = FastAPI()
 
-# Database connection
+# Storage helpers
 def get_db_connection():
     """Get PostgreSQL database connection"""
     database_url = os.environ.get('DATABASE_URL', 'postgresql://gameuser:gamepass123@postgres:5432/wordgame')
@@ -28,16 +28,14 @@ def get_db_cursor(conn):
     """Get database cursor that returns dict results"""
     return conn.cursor(cursor_factory=RealDictCursor)
 
-# Load embedding model (this will download on first run - ~400MB)
-# Using a lightweight model for speed
+# ML resources
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Import WordNet for hints
+# Hint resources
 try:
     from nltk.corpus import wordnet as wn
     import nltk
 
-    # Try to load wordnet
     try:
         wn.synsets('test')
     except LookupError:
@@ -50,7 +48,7 @@ except ImportError:
     print("  Install with: pip install nltk")
     WORDNET_AVAILABLE = False
 
-# Load noun list from JSON file
+# Word list
 WORD_RE = re.compile(r"^[a-z]+$")
 MIN_NOUN_LENGTH = 3
 MAX_HINT_STEPS = 15
@@ -87,7 +85,7 @@ def load_nouns() -> List[str]:
 NOUNS = load_nouns()
 
 
-# In-memory game state per player (in production, use proper session management)
+# Game state
 class GameState:
     def __init__(self):
         self.session_id: Optional[int] = None
@@ -107,7 +105,6 @@ class GameState:
         self.hints_used = 0
         self.start_time = datetime.now()
         
-        # Create game session in database
         cursor = get_db_cursor(conn)
         cursor.execute(
             """
@@ -151,7 +148,7 @@ def get_active_game_state(player_name: str) -> GameState:
     return state
 
 
-# Request/Response models
+# API models
 class GameStartRequest(BaseModel):
     player_name: str
 
@@ -194,7 +191,7 @@ class LeaderboardEntry(BaseModel):
     win_rate: float
 
 
-# Hint generation function
+# Hint generation
 def _sanitize_hint(text: str, target_word: str) -> str:
     if not text:
         return ""
@@ -477,7 +474,7 @@ def generate_hint(word: str, hint_number: int) -> str:
     return "No more hints available."
 
 
-# API endpoints
+# Routes
 @app.post("/start", response_model=GameStartResponse)
 async def start_game(request: GameStartRequest):
     """Start a new game"""
@@ -502,20 +499,15 @@ async def make_guess(guess_req: GuessRequest):
 
     guess_word = guess_req.word.lower().strip()
 
-    # Encode the guess
     guess_embedding = model.encode(guess_word)
 
-    # Calculate cosine similarity
     similarity = float(np.dot(state.target_embedding, guess_embedding) /
                        (np.linalg.norm(state.target_embedding) * np.linalg.norm(guess_embedding)))
 
-    # Check if correct (exact match or very high similarity)
     is_correct = (guess_word == state.target_word) or (similarity > 0.99)
     
-    # Calculate guess number
     guess_number = len(state.guesses) + 1
 
-    # Store guess in memory
     guess_data = {
         "word": guess_word,
         "similarity": round(similarity, 4),
@@ -523,7 +515,6 @@ async def make_guess(guess_req: GuessRequest):
     }
     state.guesses.append(guess_data)
     
-    # Save guess to database
     conn = get_db_connection()
     try:
         cursor = get_db_cursor(conn)
@@ -535,9 +526,8 @@ async def make_guess(guess_req: GuessRequest):
             (state.session_id, guess_word, similarity, guess_number, is_correct)
         )
         
-        # If game won, update session
         if is_correct:
-            score = max(0, 100 - (guess_number * 5))  # Score decreases with more guesses
+            score = max(0, 100 - (guess_number * 5))
             cursor.execute(
                 """
                 UPDATE game_sessions
@@ -570,13 +560,10 @@ async def reveal_word(request: RevealRequest):
     target = state.target_word
     guesses_count = len(state.guesses)
     
-    # Calculate score (lower for giving up)
     score = max(0, 50 - (guesses_count * 3))
     
-    # Get best similarity
     best_similarity = max([g['similarity'] for g in state.guesses], default=0.0)
     
-    # Update game session in database
     conn = get_db_connection()
     try:
         cursor = get_db_cursor(conn)
@@ -607,10 +594,8 @@ async def get_hint(request: HintRequest):
     player_name = require_player_name(request.player_name)
     state = get_active_game_state(player_name)
 
-    # Increment hint counter
     state.hints_used += 1
 
-    # Generate hint
     hint = generate_hint(state.target_word, state.hints_used)
 
     return HintResponse(
@@ -699,11 +684,10 @@ async def health_check():
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
 
-# Mount static files directory
+# Static UI
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# Serve static files (frontend)
 @app.get("/")
 async def read_root():
     index_path = Path("static/index.html")
@@ -713,10 +697,8 @@ async def read_root():
 
 
 if __name__ == "__main__":
-    # Create static directory if it doesn't exist
     Path("static").mkdir(exist_ok=True)
 
-    # Run the server (use PORT env var for cloud deployment)
     import os
 
     port = int(os.environ.get("PORT", 8000))
