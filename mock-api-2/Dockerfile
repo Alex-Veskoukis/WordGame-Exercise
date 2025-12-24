@@ -2,7 +2,7 @@
 FROM node:18-alpine
 
 LABEL maintainer="Word Game Team"
-LABEL description="Mock REST API for hints and achievements"
+LABEL description="REST API for hints and achievements"
 
 WORKDIR /app
 
