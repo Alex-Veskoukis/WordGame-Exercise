@@ -38,7 +38,7 @@ Semantic Word Game is a Dockerized word guessing application. The backend select
 ## Setup
 
 ### 1) Environment
-Copy the example environment file and adjust if needed:
+Docker Compose reads a `.env` file in the project root. It is optional; if it does not exist, the defaults embedded in `docker-compose.yaml` are used. To override values, copy the template and edit:
 ```bash
 cp .env.example .env
 ```
@@ -222,10 +222,12 @@ http://localhost:3001/powerups
 
 ## Configuration
 
-Environment variables in `.env`:
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
-- `APPSMITH_ENCRYPTION_PASSWORD`, `APPSMITH_ENCRYPTION_SALT`
-- `GROQ_API_KEY` (optional; not used by the backend)
+Environment variables loaded by Docker Compose:
+- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: credentials and database name for PostgreSQL; also used to build the backend `DATABASE_URL` connection string.
+- `APPSMITH_ENCRYPTION_PASSWORD`, `APPSMITH_ENCRYPTION_SALT`: encryption keys used by Appsmith to encrypt and decrypt its stored secrets (datasource passwords, API keys) in MongoDB.
+  - These are not login credentials.
+  - You must set them before first run and keep them unchanged; if you change them later, Appsmith will not be able to decrypt previously stored secrets.
+  - The placeholders in `.env.example` are only for local testing. Use strong, private values for any shared or production deployment.
 
 ## Operations
 
