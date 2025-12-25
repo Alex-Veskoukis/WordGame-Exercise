@@ -63,48 +63,7 @@ CREATE TABLE player_stats (
 
 CREATE INDEX idx_stat_date ON player_stats(stat_date DESC);
 
-
-INSERT INTO game_sessions (player_name, target_word, start_time, end_time, total_guesses, won, score, difficulty, hints_used, best_similarity)
-VALUES 
-    ('Alice', 'mountain', '2024-12-15 10:00:00', '2024-12-15 10:05:00', 8, TRUE, 92, 'medium', 1, 0.95),
-    ('Bob', 'telescope', '2024-12-15 11:30:00', '2024-12-15 11:40:00', 12, TRUE, 75, 'hard', 2, 0.89),
-    ('Charlie', 'piano', '2024-12-15 14:00:00', '2024-12-15 14:10:00', 15, FALSE, 45, 'easy', 3, 0.78),
-    ('Alice', 'elephant', '2024-12-16 09:00:00', '2024-12-16 09:06:00', 6, TRUE, 98, 'medium', 0, 0.98),
-    ('Diana', 'computer', '2024-12-16 10:00:00', '2024-12-16 10:15:00', 10, TRUE, 85, 'medium', 1, 0.92);
-
-INSERT INTO guesses (session_id, guess_word, similarity_score, guess_number, is_correct)
-VALUES 
-    (1, 'hill', 0.65, 1, FALSE),
-    (1, 'peak', 0.78, 2, FALSE),
-    (1, 'summit', 0.82, 3, FALSE),
-    (1, 'cliff', 0.71, 4, FALSE),
-    (1, 'valley', 0.68, 5, FALSE),
-    (1, 'ridge', 0.75, 6, FALSE),
-    (1, 'alps', 0.85, 7, FALSE),
-    (1, 'mountain', 1.0, 8, TRUE);
-
-INSERT INTO guesses (session_id, guess_word, similarity_score, guess_number, is_correct)
-VALUES 
-    (2, 'microscope', 0.72, 1, FALSE),
-    (2, 'lens', 0.65, 2, FALSE),
-    (2, 'binoculars', 0.81, 3, FALSE),
-    (2, 'observatory', 0.75, 4, FALSE),
-    (2, 'telescope', 1.0, 5, TRUE);
-
-INSERT INTO leaderboard (player_name, total_games, games_won, total_guesses, best_score, avg_guesses, win_rate)
-VALUES 
-    ('Alice', 2, 2, 14, 98, 7.0, 100.0),
-    ('Bob', 1, 1, 5, 75, 5.0, 100.0),
-    ('Charlie', 1, 0, 15, 45, 15.0, 0.0),
-    ('Diana', 1, 1, 10, 85, 10.0, 100.0);
-
-INSERT INTO player_stats (player_name, stat_date, games_today, wins_today, avg_similarity_today, perfect_games)
-VALUES 
-    ('Alice', '2024-12-15', 1, 1, 0.95, 0),
-    ('Alice', '2024-12-16', 1, 1, 0.98, 1),
-    ('Bob', '2024-12-15', 1, 1, 0.89, 0),
-    ('Charlie', '2024-12-15', 1, 0, 0.78, 0),
-    ('Diana', '2024-12-16', 1, 1, 0.92, 0);
+-- Schema only. Sample rows are loaded separately from sql/export.sql.
 
 
 CREATE VIEW recent_games AS
@@ -167,7 +126,6 @@ AFTER UPDATE OF end_time ON game_sessions
 FOR EACH ROW
 WHEN (NEW.end_time IS NOT NULL AND OLD.end_time IS NULL)
 EXECUTE FUNCTION update_leaderboard();
-
 
 
 

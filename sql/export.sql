@@ -1,15 +1,15 @@
 
 
 
-INSERT INTO game_sessions (session_id, player_name, target_word, start_time, end_time, total_guesses, won, score, difficulty, hints_used, best_similarity) VALUES
-(1, 'Alice', 'mountain', '2024-12-15 10:00:00', '2024-12-15 10:05:00', 8, TRUE, 92, 'medium', 1, 0.95),
-(2, 'Bob', 'telescope', '2024-12-15 11:30:00', '2024-12-15 11:40:00', 12, TRUE, 75, 'hard', 2, 0.89),
-(3, 'Charlie', 'piano', '2024-12-15 14:00:00', '2024-12-15 14:10:00', 15, FALSE, 45, 'easy', 3, 0.78),
-(4, 'Alice', 'elephant', '2024-12-16 09:00:00', '2024-12-16 09:06:00', 6, TRUE, 98, 'medium', 0, 0.98),
-(5, 'Diana', 'computer', '2024-12-16 10:00:00', '2024-12-16 10:15:00', 10, TRUE, 85, 'medium', 1, 0.92),
-(6, 'Bob', 'ocean', '2024-12-16 11:00:00', '2024-12-16 11:12:00', 9, TRUE, 88, 'medium', 1, 0.94),
-(7, 'Charlie', 'guitar', '2024-12-16 12:00:00', '2024-12-16 12:08:00', 7, TRUE, 95, 'easy', 0, 0.96),
-(8, 'Eve', 'library', '2024-12-16 13:00:00', '2024-12-16 13:20:00', 18, FALSE, 38, 'hard', 4, 0.72);
+INSERT INTO game_sessions (player_name, target_word, start_time, end_time, total_guesses, won, score, difficulty, hints_used, best_similarity) VALUES
+('Alice', 'mountain', '2024-12-15 10:00:00', '2024-12-15 10:05:00', 8, TRUE, 92, 'medium', 1, 0.95),
+('Bob', 'telescope', '2024-12-15 11:30:00', '2024-12-15 11:40:00', 12, TRUE, 75, 'hard', 2, 0.89),
+('Charlie', 'piano', '2024-12-15 14:00:00', '2024-12-15 14:10:00', 15, FALSE, 45, 'easy', 3, 0.78),
+('Alice', 'elephant', '2024-12-16 09:00:00', '2024-12-16 09:06:00', 6, TRUE, 98, 'medium', 0, 0.98),
+('Diana', 'computer', '2024-12-16 10:00:00', '2024-12-16 10:15:00', 10, TRUE, 85, 'medium', 1, 0.92),
+('Bob', 'ocean', '2024-12-16 11:00:00', '2024-12-16 11:12:00', 9, TRUE, 88, 'medium', 1, 0.94),
+('Charlie', 'guitar', '2024-12-16 12:00:00', '2024-12-16 12:08:00', 7, TRUE, 95, 'easy', 0, 0.96),
+('Eve', 'library', '2024-12-16 13:00:00', '2024-12-16 13:20:00', 18, FALSE, 38, 'hard', 4, 0.72);
 
 
 INSERT INTO guesses (session_id, guess_word, similarity_score, guess_number, is_correct) VALUES
@@ -77,7 +77,6 @@ INSERT INTO player_stats (player_name, stat_date, games_today, wins_today, avg_s
 ('Charlie', '2024-12-16', 1, 1, 0.96, 0),
 ('Diana', '2024-12-16', 1, 1, 0.92, 0),
 ('Eve', '2024-12-16', 1, 0, 0.72, 0);
-
 
 
 

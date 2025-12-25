@@ -81,6 +81,13 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-gameuser}:${POSTGRES_PASSWORD:-gamepass123}@postgres:5432/${POSTGRES_DB:-wordgame}
       - PORT=8000
       - PYTHONUNBUFFERED=1
+      - AI_HINTS_ENABLED=${AI_HINTS_ENABLED:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-3.5-turbo-0125}
+      - OPENAI_CHAT_URL=${OPENAI_CHAT_URL:-https://api.openai.com/v1/chat/completions}
+      - OPENAI_TIMEOUT_SECONDS=${OPENAI_TIMEOUT_SECONDS:-4}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-60}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.7}
     volumes:
       - ./backend/nouns.json:/app/nouns.json:ro
     depends_on:

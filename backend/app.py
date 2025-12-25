@@ -15,8 +15,13 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
+import httpx
+from dotenv import load_dotenv
 
 app = FastAPI()
+
+# Load repo root .env if present for local runs.
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 # Storage helpers
 def get_db_connection():
@@ -27,6 +32,48 @@ def get_db_connection():
 def get_db_cursor(conn):
     """Get database cursor that returns dict results"""
     return conn.cursor(cursor_factory=RealDictCursor)
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+# AI hint configuration
+AI_HINTS_ENABLED = _env_flag("AI_HINTS_ENABLED", False)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+if OPENAI_API_KEY.lower().startswith("bearer "):
+    OPENAI_API_KEY = OPENAI_API_KEY[7:].strip()
+OPENAI_CHAT_URL = os.environ.get("OPENAI_CHAT_URL", "https://api.openai.com/v1/chat/completions")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo-0125")
+OPENAI_TIMEOUT_SECONDS = _env_float("OPENAI_TIMEOUT_SECONDS", 4.0)
+OPENAI_MAX_TOKENS = _env_int("OPENAI_MAX_TOKENS", 60)
+OPENAI_TEMPERATURE = _env_float("OPENAI_TEMPERATURE", 0.7)
+AI_HINTS_CONFIGURED = AI_HINTS_ENABLED and bool(OPENAI_API_KEY)
+
+if AI_HINTS_ENABLED and not OPENAI_API_KEY:
+    print("AI hints enabled but OPENAI_API_KEY is missing; falling back to local hints.")
 
 # ML resources
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -94,6 +141,7 @@ class GameState:
         self.target_embedding: Optional[np.ndarray] = None
         self.guesses: List[dict] = []
         self.hints_used: int = 0
+        self.hints: List[str] = []
         self.start_time: Optional[datetime] = None
 
     def start_new_game(self, player_name: str, conn):
@@ -103,6 +151,7 @@ class GameState:
         self.target_embedding = model.encode(self.target_word)
         self.guesses = []
         self.hints_used = 0
+        self.hints = []
         self.start_time = datetime.now()
         
         cursor = get_db_cursor(conn)
@@ -443,6 +492,98 @@ def _build_definition_hints(word: str, desired: int = 10) -> List[str]:
     return hints[:desired]
 
 
+def _extract_openai_message(payload: dict) -> Optional[str]:
+    if not isinstance(payload, dict):
+        return None
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    first = choices[0]
+    if not isinstance(first, dict):
+        return None
+    message = first.get("message")
+    if not isinstance(message, dict):
+        return None
+    content = message.get("content")
+    if not isinstance(content, str):
+        return None
+    return content
+
+
+def _hint_is_duplicate(candidate: str, previous: List[str]) -> bool:
+    if not candidate:
+        return True
+    normalized = _canonicalize_hint(candidate)
+    if not normalized:
+        return True
+    previous_norm = {_canonicalize_hint(h) for h in previous if h}
+    return normalized in previous_norm
+
+
+async def generate_ai_hint(word: str, hint_number: int, previous_hints: Optional[List[str]] = None) -> Optional[str]:
+    if not AI_HINTS_CONFIGURED:
+        return None
+    if hint_number > MAX_HINT_STEPS:
+        return None
+    previous_hints = previous_hints or []
+    recent_hints = previous_hints[-6:]
+    redacted_hints = [_sanitize_hint(h, word) for h in recent_hints if h]
+
+    system_prompt = (
+        "You generate hints for a word-guessing game. Provide a short, "
+        "definition-style hint for the word. Do not include the word itself "
+        "or close spelling variants. Keep it to one sentence under 20 words. "
+        "Avoid repeating or paraphrasing earlier hints and use a different angle."
+    )
+
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    for attempt in range(2):
+        prior_text = "\n".join(f"- {hint}" for hint in redacted_hints) or "None"
+        user_prompt = (
+            f"Word: {word}\n"
+            f"Hint number: {hint_number}\n"
+            f"Previous hints:\n{prior_text}\n"
+            "Provide a new, different hint."
+        )
+        payload = {
+            "model": OPENAI_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": OPENAI_TEMPERATURE,
+            "max_tokens": OPENAI_MAX_TOKENS,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=OPENAI_TIMEOUT_SECONDS) as client:
+                response = await client.post(OPENAI_CHAT_URL, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+        except Exception as exc:
+            print(f"AI hint request failed: {exc}")
+            return None
+
+        text = _extract_openai_message(data)
+        if not text:
+            return None
+
+        normalized = _normalize_definition(text.strip().strip('"'), word)
+        if not normalized:
+            return None
+        if _hint_is_duplicate(normalized, previous_hints):
+            if attempt == 0:
+                redacted_hints = redacted_hints + [normalized]
+                continue
+            return None
+        return normalized
+    return None
+
+
 def generate_hint(word: str, hint_number: int) -> str:
     """
     Generate a contextual hint for the target word without revealing it.
@@ -596,7 +737,13 @@ async def get_hint(request: HintRequest):
 
     state.hints_used += 1
 
-    hint = generate_hint(state.target_word, state.hints_used)
+    hint = None
+    if AI_HINTS_CONFIGURED:
+        hint = await generate_ai_hint(state.target_word, state.hints_used, state.hints)
+    if not hint:
+        hint = generate_hint(state.target_word, state.hints_used)
+    if hint:
+        state.hints.append(hint)
 
     return HintResponse(
         hint=hint,
