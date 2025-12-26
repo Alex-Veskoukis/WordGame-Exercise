@@ -1,0 +1,74 @@
+services:
+  appsmith:
+    image: appsmith/appsmith-ce:latest
+    container_name: word-game-ui
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - appsmith_data:/appsmith-stacks
+    environment:
+      - APPSMITH_ENCRYPTION_PASSWORD=${APPSMITH_ENCRYPTION_PASSWORD:-change_this_secure_password_123}
+      - APPSMITH_ENCRYPTION_SALT=${APPSMITH_ENCRYPTION_SALT:-change_this_secure_salt_456}
+    depends_on:
+      - postgres
+      - mock-api-1
+      - mock-api-2
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: word-game-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gameuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gamepass123}
+      POSTGRES_DB: ${POSTGRES_DB:-wordgame}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./sql/export.sql:/docker-entrypoint-initdb.d/02-sample-data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameuser -d wordgame"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: word-game-admin
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha-dark
+    depends_on:
+      - postgres
+
+  mock-api-2:
+    build:
+      context: ./rest-apis/mock-api-2
+      dockerfile: Dockerfile
+    container_name: mock-hints
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+
+  mock-api-1:
+    image: svenwal/jsonplaceholder:latest
+    container_name: mock-wordpacks
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./rest-apis/mock-api-1/db.json:/usr/src/app/db.json:ro
+
+volumes:
+  postgres_data:
+    driver: local
+    name: word-game-postgres-data
+  appsmith_data:
+    driver: local
+    name: word-game-appsmith-data

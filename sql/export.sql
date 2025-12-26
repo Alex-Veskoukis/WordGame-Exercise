@@ -78,7 +78,12 @@ INSERT INTO player_stats (player_name, stat_date, games_today, wins_today, avg_s
 ('Diana', '2024-12-16', 1, 1, 0.92, 0),
 ('Eve', '2024-12-16', 1, 0, 0.72, 0);
 
+INSERT INTO favorites (player_name, source, item_type, item_id, item_name, item_payload) VALUES
+('Alice', 'mock-api-1', 'wordpacks', 1, 'Nature Pack', '{"id": 1, "name": "Nature Pack", "difficulty": "easy"}'::jsonb),
+('Bob', 'mock-api-2', 'powerups', 1, 'First Letter Reveal', '{"id": 1, "type": "first_letter"}'::jsonb);
 
-
+INSERT INTO api_logs (player_name, api_name, query, response_payload) VALUES
+('Alice', 'dictionaryapi.dev', 'mountain', '[{"word":"mountain","note":"sample"}]'::jsonb),
+('Bob', 'dictionaryapi.dev', 'computer', '[{"word":"computer","note":"sample"}]'::jsonb);
 
 

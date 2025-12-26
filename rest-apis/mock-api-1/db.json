@@ -1,0 +1,41 @@
+{
+  "wordpacks": [
+    {
+      "id": 1,
+      "name": "Nature Pack",
+      "difficulty": "easy",
+      "description": "Nouns related to nature and landscapes.",
+      "words": ["mountain", "river", "forest", "ocean", "valley", "island", "desert", "rain"]
+    },
+    {
+      "id": 2,
+      "name": "Tech Pack",
+      "difficulty": "medium",
+      "description": "Nouns related to technology and devices.",
+      "words": ["computer", "keyboard", "telescope", "database", "network", "browser", "router", "server"]
+    },
+    {
+      "id": 3,
+      "name": "Everyday Pack",
+      "difficulty": "easy",
+      "description": "Common everyday nouns for quick games.",
+      "words": ["library", "piano", "guitar", "bottle", "window", "garden", "bridge", "market"]
+    }
+  ],
+  "daily_challenges": [
+    {
+      "id": 1,
+      "date": "2025-01-01",
+      "pack_id": 1,
+      "title": "Start the year with nature",
+      "max_guesses": 10
+    },
+    {
+      "id": 2,
+      "date": "2025-01-02",
+      "pack_id": 2,
+      "title": "Tech-themed challenge",
+      "max_guesses": 12
+    }
+  ]
+}

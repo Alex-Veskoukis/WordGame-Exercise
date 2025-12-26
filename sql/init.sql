@@ -3,6 +3,8 @@ DROP TABLE IF EXISTS guesses CASCADE;
 DROP TABLE IF EXISTS game_sessions CASCADE;
 DROP TABLE IF EXISTS leaderboard CASCADE;
 DROP TABLE IF EXISTS player_stats CASCADE;
+DROP TABLE IF EXISTS favorites CASCADE;
+DROP TABLE IF EXISTS api_logs CASCADE;
 
 CREATE TABLE game_sessions (
     session_id SERIAL PRIMARY KEY,
@@ -66,6 +68,33 @@ CREATE INDEX idx_stat_date ON player_stats(stat_date DESC);
 -- Schema only. Sample rows are loaded separately from sql/export.sql.
 
 
+CREATE TABLE favorites (
+    favorite_id SERIAL PRIMARY KEY,
+    player_name VARCHAR(100) NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    item_type VARCHAR(50) NOT NULL,
+    item_id INT NOT NULL,
+    item_name TEXT,
+    item_payload JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (player_name, source, item_type, item_id)
+);
+
+CREATE INDEX idx_favorites_player_name ON favorites(player_name);
+
+CREATE TABLE api_logs (
+    log_id SERIAL PRIMARY KEY,
+    player_name VARCHAR(100) NOT NULL,
+    api_name VARCHAR(100) NOT NULL,
+    query TEXT NOT NULL,
+    response_payload JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_api_logs_player_name ON api_logs(player_name);
+CREATE INDEX idx_api_logs_created_at ON api_logs(created_at DESC);
+
+
 CREATE VIEW recent_games AS
 SELECT 
     gs.session_id,
@@ -126,8 +155,6 @@ AFTER UPDATE OF end_time ON game_sessions
 FOR EACH ROW
 WHEN (NEW.end_time IS NOT NULL AND OLD.end_time IS NULL)
 EXECUTE FUNCTION update_leaderboard();
-
-
 
 
 

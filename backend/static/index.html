@@ -68,6 +68,22 @@
             border-radius: 10px;
             transition: border-color 0.3s;
         }
+
+        select {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
         
         input[type="text"]:focus {
             outline: none;
@@ -316,6 +332,54 @@
         .score-low {
             background: #f56565;
         }
+
+        .mock-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .mock-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .mock-card h4 {
+            margin: 0 0 10px;
+            color: #2d3748;
+        }
+
+        .mock-card p {
+            margin: 0 0 10px;
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .favorites-list {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .favorite-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        .favorite-item:last-child {
+            border-bottom: none;
+        }
+
+        .favorite-meta {
+            color: #718096;
+            font-size: 12px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -394,6 +458,45 @@
                 </table>
             </div>
         </div>
+
+        <div class="leaderboard" id="mockApiDemo">
+            <div class="leaderboard-header">
+                <h3>Mock APIs → PostgreSQL Demo</h3>
+                <button class="btn-primary btn-small" id="refreshMockDataBtn">Refresh Data</button>
+            </div>
+            <p class="subtitle" style="margin: 0 0 10px; font-size: 14px;">
+                Loads data from the two mock REST APIs and saves selected items into PostgreSQL as favorites.
+            </p>
+
+            <div class="mock-grid">
+                <div class="mock-card">
+                    <h4>Mock API 1 (jsonplaceholder): Word Packs</h4>
+                    <p>Select a word pack and save it.</p>
+                    <select id="wordpackSelect" aria-label="Word packs"></select>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn-success btn-small" id="saveWordpackBtn">Save Pack</button>
+                    </div>
+                </div>
+
+                <div class="mock-card">
+                    <h4>Mock API 2 (custom): Powerups</h4>
+                    <p>Select a powerup and save it.</p>
+                    <select id="powerupSelect" aria-label="Powerups"></select>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn-success btn-small" id="savePowerupBtn">Save Powerup</button>
+                    </div>
+                </div>
+
+                <div class="mock-card">
+                    <h4>Saved Favorites (PostgreSQL)</h4>
+                    <p>Favorites for the current player name.</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <button class="btn-primary btn-small" id="refreshFavoritesBtn">Refresh Favorites</button>
+                    </div>
+                    <div class="favorites-list" id="favoritesList"></div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -416,6 +519,13 @@
         const historyList = document.getElementById('historyList');
         const leaderboardBody = document.getElementById('leaderboardBody');
         const refreshLeaderboardBtn = document.getElementById('refreshLeaderboardBtn');
+        const refreshMockDataBtn = document.getElementById('refreshMockDataBtn');
+        const wordpackSelect = document.getElementById('wordpackSelect');
+        const powerupSelect = document.getElementById('powerupSelect');
+        const saveWordpackBtn = document.getElementById('saveWordpackBtn');
+        const savePowerupBtn = document.getElementById('savePowerupBtn');
+        const refreshFavoritesBtn = document.getElementById('refreshFavoritesBtn');
+        const favoritesList = document.getElementById('favoritesList');
         
         function setGameActive(active) {
             guessInput.disabled = !active;
@@ -574,6 +684,151 @@
         function clearHint() {
             hintBox.textContent = '';
             hintBox.classList.add('hidden');
+        }
+
+        function currentPlayerName() {
+            return (activePlayerName || playerNameInput.value || '').trim();
+        }
+
+        function setSelectMessage(selectEl, message) {
+            selectEl.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = message;
+            selectEl.appendChild(option);
+        }
+
+        function setFavoritesMessage(message) {
+            favoritesList.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'favorite-item';
+            empty.textContent = message;
+            favoritesList.appendChild(empty);
+        }
+
+        function renderFavorites(entries) {
+            if (!entries || entries.length === 0) {
+                setFavoritesMessage('No favorites saved yet.');
+                return;
+            }
+
+            favoritesList.innerHTML = '';
+            entries.forEach((entry) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'favorite-item';
+
+                const title = document.createElement('div');
+                title.style.fontWeight = '600';
+                title.textContent = entry.item_name || `${entry.item_type} #${entry.item_id}`;
+                wrapper.appendChild(title);
+
+                const meta = document.createElement('div');
+                meta.className = 'favorite-meta';
+                meta.textContent = `${entry.source} · ${entry.item_type} #${entry.item_id}`;
+                wrapper.appendChild(meta);
+
+                favoritesList.appendChild(wrapper);
+            });
+        }
+
+        async function refreshMockData() {
+            setSelectMessage(wordpackSelect, 'Loading word packs...');
+            setSelectMessage(powerupSelect, 'Loading powerups...');
+
+            try {
+                const [wordpacksResp, powerupsResp] = await Promise.all([
+                    fetch('/mock/wordpacks'),
+                    fetch('/mock/powerups')
+                ]);
+
+                const wordpacksData = await wordpacksResp.json();
+                const powerupsData = await powerupsResp.json();
+
+                if (!wordpacksResp.ok) {
+                    throw new Error(wordpacksData.detail || 'Failed to load word packs.');
+                }
+                if (!powerupsResp.ok) {
+                    throw new Error(powerupsData.detail || 'Failed to load powerups.');
+                }
+
+                wordpackSelect.innerHTML = '';
+                (wordpacksData || []).forEach((pack) => {
+                    const option = document.createElement('option');
+                    option.value = pack.id;
+                    option.textContent = `${pack.name || 'Pack'} (${pack.difficulty || 'unknown'})`;
+                    wordpackSelect.appendChild(option);
+                });
+                if (wordpackSelect.options.length === 0) {
+                    setSelectMessage(wordpackSelect, 'No word packs found.');
+                }
+
+                powerupSelect.innerHTML = '';
+                (powerupsData || []).forEach((powerup) => {
+                    const option = document.createElement('option');
+                    option.value = powerup.id;
+                    option.textContent = powerup.name || `Powerup #${powerup.id}`;
+                    powerupSelect.appendChild(option);
+                });
+                if (powerupSelect.options.length === 0) {
+                    setSelectMessage(powerupSelect, 'No powerups found.');
+                }
+            } catch (error) {
+                setSelectMessage(wordpackSelect, 'Failed to load word packs.');
+                setSelectMessage(powerupSelect, 'Failed to load powerups.');
+            }
+        }
+
+        async function fetchFavorites() {
+            const player = currentPlayerName();
+            if (!player) {
+                setFavoritesMessage('Enter a player name to view favorites.');
+                return;
+            }
+
+            setFavoritesMessage('Loading favorites...');
+            try {
+                const response = await fetch(`/favorites?player_name=${encodeURIComponent(player)}&limit=50`);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to load favorites.');
+                }
+                renderFavorites(data);
+            } catch (error) {
+                setFavoritesMessage('Favorites unavailable.');
+            }
+        }
+
+        async function saveFavorite(source, itemType, itemId) {
+            const player = currentPlayerName();
+            if (!player) {
+                showStatus('Enter a player name first.', 'error');
+                return;
+            }
+            if (!itemId) {
+                showStatus('Select an item to save.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player_name: player,
+                        source: source,
+                        item_type: itemType,
+                        item_id: Number(itemId)
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to save favorite.');
+                }
+                showStatus('Saved to favorites.', 'success');
+                fetchFavorites();
+            } catch (error) {
+                showStatus('Error saving favorite: ' + error.message, 'error');
+            }
         }
 
         function setLeaderboardMessage(message) {
@@ -791,6 +1046,10 @@
         hintBtn.addEventListener('click', requestHint);
         giveUpBtn.addEventListener('click', giveUp);
         refreshLeaderboardBtn.addEventListener('click', fetchLeaderboard);
+        refreshMockDataBtn.addEventListener('click', refreshMockData);
+        refreshFavoritesBtn.addEventListener('click', fetchFavorites);
+        saveWordpackBtn.addEventListener('click', () => saveFavorite('mock-api-1', 'wordpacks', wordpackSelect.value));
+        savePowerupBtn.addEventListener('click', () => saveFavorite('mock-api-2', 'powerups', powerupSelect.value));
         
         guessInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -802,6 +1061,8 @@
         initPlots();
         setGameActive(false);
         fetchLeaderboard();
+        refreshMockData();
+        fetchFavorites();
     </script>
 </body>
 </html>

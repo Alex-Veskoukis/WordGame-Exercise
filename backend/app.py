@@ -8,11 +8,11 @@ import random
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from threading import Lock
 import uvicorn
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import Json, RealDictCursor
 import os
 from datetime import datetime
 import httpx
@@ -74,6 +74,11 @@ AI_HINTS_CONFIGURED = AI_HINTS_ENABLED and bool(OPENAI_API_KEY)
 
 if AI_HINTS_ENABLED and not OPENAI_API_KEY:
     print("AI hints enabled but OPENAI_API_KEY is missing; falling back to local hints.")
+
+# Mock API configuration (container-to-container URLs)
+MOCK_API_1_URL = os.environ.get("MOCK_API_1_URL", "http://mock-api-1:3000").rstrip("/")
+MOCK_API_2_URL = os.environ.get("MOCK_API_2_URL", "http://mock-api-2:3001").rstrip("/")
+MOCK_API_TIMEOUT_SECONDS = _env_float("MOCK_API_TIMEOUT_SECONDS", 3.0)
 
 # ML resources
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -238,6 +243,22 @@ class LeaderboardEntry(BaseModel):
     best_score: int
     avg_guesses: float
     win_rate: float
+
+class FavoriteCreateRequest(BaseModel):
+    player_name: str
+    source: str
+    item_type: str
+    item_id: int
+
+class FavoriteEntry(BaseModel):
+    favorite_id: int
+    player_name: str
+    source: str
+    item_type: str
+    item_id: int
+    item_name: Optional[str] = None
+    item_payload: dict
+    created_at: datetime
 
 
 # Hint generation
@@ -614,6 +635,29 @@ def generate_hint(word: str, hint_number: int) -> str:
 
     return "No more hints available."
 
+RESOURCE_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+def _mock_base_url(source: str) -> str:
+    normalized = (source or "").strip().lower()
+    if normalized in {"mock-api-1", "jsonplaceholder", "placeholder"}:
+        return MOCK_API_1_URL
+    if normalized in {"mock-api-2", "custom-mock", "mock-hints"}:
+        return MOCK_API_2_URL
+    raise HTTPException(status_code=400, detail="Unknown source. Use mock-api-1 or mock-api-2.")
+
+
+async def _fetch_json(url: str) -> Any:
+    try:
+        async with httpx.AsyncClient(timeout=MOCK_API_TIMEOUT_SECONDS) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        raise HTTPException(status_code=502, detail=f"Mock API returned HTTP {status}.") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Mock API is unavailable.") from exc
+
 
 # Routes
 @app.post("/start", response_model=GameStartResponse)
@@ -769,6 +813,101 @@ async def get_leaderboard(limit: int = 10):
             """,
             (limit,)
         )
+        rows = cursor.fetchall()
+        cursor.close()
+        return rows
+    finally:
+        conn.close()
+
+@app.get("/mock/wordpacks")
+async def list_wordpacks():
+    """Proxy wordpacks from mock-api-1 (svenwal/jsonplaceholder)."""
+    return await _fetch_json(f"{MOCK_API_1_URL}/wordpacks")
+
+
+@app.get("/mock/powerups")
+async def list_powerups():
+    """Proxy powerups from mock-api-2 (custom json-server image)."""
+    return await _fetch_json(f"{MOCK_API_2_URL}/powerups")
+
+
+@app.post("/favorites", response_model=FavoriteEntry)
+async def create_favorite(request: FavoriteCreateRequest):
+    """Save a selected mock API item into PostgreSQL."""
+    player_name = require_player_name(request.player_name)
+    item_type = (request.item_type or "").strip()
+    if not RESOURCE_NAME_RE.fullmatch(item_type):
+        raise HTTPException(status_code=400, detail="Invalid item_type.")
+    item_id = request.item_id
+    if item_id < 1:
+        raise HTTPException(status_code=400, detail="item_id must be >= 1.")
+
+    base_url = _mock_base_url(request.source)
+    item = await _fetch_json(f"{base_url}/{item_type}/{item_id}")
+    if not isinstance(item, dict):
+        raise HTTPException(status_code=502, detail="Mock API returned an unexpected payload.")
+
+    item_name = None
+    for key in ("name", "title", "type"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            item_name = value.strip()
+            break
+    if not item_name:
+        item_name = f"{item_type} #{item_id}"
+
+    conn = get_db_connection()
+    try:
+        cursor = get_db_cursor(conn)
+        cursor.execute(
+            """
+            INSERT INTO favorites (player_name, source, item_type, item_id, item_name, item_payload)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (player_name, source, item_type, item_id)
+            DO UPDATE SET item_name = EXCLUDED.item_name, item_payload = EXCLUDED.item_payload
+            RETURNING favorite_id, player_name, source, item_type, item_id, item_name, item_payload, created_at
+            """,
+            (player_name, request.source, item_type, item_id, item_name, Json(item)),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+        return row
+    finally:
+        conn.close()
+
+
+@app.get("/favorites", response_model=List[FavoriteEntry])
+async def list_favorites(player_name: Optional[str] = None, limit: int = 50):
+    """List saved favorites (optionally filtered by player_name)."""
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 200.")
+
+    conn = get_db_connection()
+    try:
+        cursor = get_db_cursor(conn)
+        if player_name is not None:
+            normalized = require_player_name(player_name)
+            cursor.execute(
+                """
+                SELECT favorite_id, player_name, source, item_type, item_id, item_name, item_payload, created_at
+                FROM favorites
+                WHERE player_name = %s
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (normalized, limit),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT favorite_id, player_name, source, item_type, item_id, item_name, item_payload, created_at
+                FROM favorites
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
         rows = cursor.fetchall()
         cursor.close()
         return rows
