@@ -39,12 +39,20 @@ docker compose -f compose.yaml down
 
 ## Appsmith UI (required flow)
 
+Important networking note:
+- `mock-api-1`, `mock-api-2`, and `postgres` are **Docker service names**. They work **inside Docker** (Appsmith server), but they will **not** open in your browser.
+- For browser/curl on your machine use `localhost` ports (3000/3001/8080).
+
 1. Open `http://localhost`.
 2. Import the app: `appsmith/word-game-app.json`.
 3. In the app:
    - Click `Load / Refresh data` (loads wordpacks + powerups and refreshes DB tables).
-   - Select a row in `WordpacksTable` or `PowerupsTable` and click the matching “Save … → Favorites”.
-   - Use the dictionary lookup (“Lookup + log to DB”) to call the external serverless API and store a log row in `api_logs`.
+    - Select a row in `WordpacksTable` or `PowerupsTable` and click the matching “Save … → Favorites”.
+    - Use the dictionary lookup (“Lookup + log to DB”) to call the external serverless API and store a log row in `api_logs`.
+
+Dictionary API quick test (expected JSON):
+- `https://api.dictionaryapi.dev/api/v2/entries/en/mountain`
+(`https://api.dictionaryapi.dev` alone returns `Cannot GET /` and is normal.)
 
 ## Database (Adminer)
 
@@ -68,4 +76,3 @@ The required files/folders are already in the repo:
 - `sql/init.sql` and `sql/export.sql`
 - `report.pdf`
 - `presentation.pptx`
-

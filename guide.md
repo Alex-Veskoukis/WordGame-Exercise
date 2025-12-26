@@ -50,6 +50,11 @@ docker compose -f compose.yaml up -d --build
   - `http://localhost:3001/hints`
   - `http://localhost:3001/achievements`
 
+Important: the Appsmith datasources use **Docker service names** (inside Docker), so these will not open in your browser:
+- `http://mock-api-1:3000`
+- `http://mock-api-2:3001`
+- `postgres:5432`
+
 ## 4) Appsmith UI flow (what the exercise asks for)
 
 1. Open Appsmith: `http://localhost`.
@@ -59,6 +64,10 @@ docker compose -f compose.yaml up -d --build
 5. Use `Lookup + log to DB` to:
    - call the external serverless API (`dictionaryapi.dev`)
    - insert a row into PostgreSQL `api_logs`
+
+Dictionary API quick test (expected JSON):
+- `https://api.dictionaryapi.dev/api/v2/entries/en/mountain`
+(`https://api.dictionaryapi.dev` alone returns `Cannot GET /` and is normal.)
 
 ## 5) Adminer checks (for screenshots)
 
@@ -84,4 +93,3 @@ Required items already present:
 - `presentation.pptx` (template)
 
 Next: open `report.pdf` and `presentation.pptx` and replace the screenshot placeholders with your own screenshots from your run.
-
