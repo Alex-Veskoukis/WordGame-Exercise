@@ -1,4 +1,4 @@
-# Word Game — Submission README (Docker + Appsmith Microservices Exercise)
+# Word Game — README
 
 This README is written for **submission/grading**: it explains exactly how to run the system and how to verify the exercise requirements (see `apalaktiki_ntinos.pdf`).
 
