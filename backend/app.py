@@ -134,7 +134,26 @@ def load_nouns() -> List[str]:
         raise RuntimeError("WordNet is required to load nouns with definitions.")
     return list(nouns_set)
 
+def normalize_target_word(word: Optional[str]) -> Optional[str]:
+    if not word:
+        return None
+    normalized = word.strip().lower()
+    if not WORD_RE.fullmatch(normalized):
+        return None
+    if len(normalized) < MIN_NOUN_LENGTH:
+        return None
+    return normalized
+
+def normalize_wordpack_name(name: Optional[str]) -> Optional[str]:
+    if not name:
+        return None
+    cleaned = name.strip()
+    return cleaned if cleaned else None
+
 NOUNS = load_nouns()
+NOUNS_BY_LENGTH: Dict[int, List[str]] = {}
+for _noun in NOUNS:
+    NOUNS_BY_LENGTH.setdefault(len(_noun), []).append(_noun)
 
 
 # Game state
@@ -148,11 +167,45 @@ class GameState:
         self.hints_used: int = 0
         self.hints: List[str] = []
         self.start_time: Optional[datetime] = None
+        self.word_source: str = "local"
+        self.wordpack_name: Optional[str] = None
 
-    def start_new_game(self, player_name: str, conn):
+    def start_new_game(
+        self,
+        player_name: str,
+        conn,
+        target_word: Optional[str] = None,
+        wordpack_name: Optional[str] = None,
+        word_length: Optional[int] = None,
+    ):
         """Start a new game and create database session"""
         self.player_name = player_name
-        self.target_word = random.choice(NOUNS)
+        normalized_target = normalize_target_word(target_word)
+        normalized_pack = normalize_wordpack_name(wordpack_name)
+        desired_length: Optional[int] = None
+        if word_length is not None:
+            desired_length = max(MIN_NOUN_LENGTH, int(word_length))
+        if normalized_target:
+            self.target_word = normalized_target
+            if normalized_pack and normalized_pack.strip().lower() not in {"external api", "external"}:
+                self.word_source = "wordpack"
+            else:
+                self.word_source = "external"
+        else:
+            if desired_length is not None:
+                candidates = NOUNS_BY_LENGTH.get(desired_length) or []
+                self.target_word = random.choice(candidates) if candidates else random.choice(NOUNS)
+            else:
+                self.target_word = random.choice(NOUNS)
+            self.word_source = "local"
+        if normalized_pack:
+            self.wordpack_name = normalized_pack
+        elif self.word_source == "external":
+            self.wordpack_name = "External API"
+        elif self.word_source == "wordpack":
+            self.wordpack_name = "Wordpack"
+        else:
+            self.wordpack_name = "Local words"
         self.target_embedding = model.encode(self.target_word)
         self.guesses = []
         self.hints_used = 0
@@ -173,6 +226,18 @@ class GameState:
         cursor.close()
         
         return self.target_word
+
+    def end_game(self):
+        """Clear active game state so the player must start a new game."""
+        self.session_id = None
+        self.target_word = None
+        self.target_embedding = None
+        self.guesses = []
+        self.hints_used = 0
+        self.hints = []
+        self.start_time = None
+        self.word_source = "local"
+        self.wordpack_name = None
 
 
 game_states: Dict[str, GameState] = {}
@@ -205,6 +270,9 @@ def get_active_game_state(player_name: str) -> GameState:
 # API models
 class GameStartRequest(BaseModel):
     player_name: str
+    target_word: Optional[str] = None
+    wordpack_name: Optional[str] = None
+    word_length: Optional[int] = None
 
 class GuessRequest(BaseModel):
     player_name: str
@@ -219,6 +287,9 @@ class GuessResponse(BaseModel):
 class GameStartResponse(BaseModel):
     message: str
     word_length: int
+    session_id: int
+    word_source: str
+    wordpack_name: Optional[str] = None
 
 class RevealRequest(BaseModel):
     player_name: str
@@ -230,6 +301,7 @@ class RevealResponse(BaseModel):
 
 class HintRequest(BaseModel):
     player_name: str
+    hint_type: Optional[str] = None
 
 class HintResponse(BaseModel):
     hint: str
@@ -615,12 +687,29 @@ def generate_hint(word: str, hint_number: int) -> str:
     hint_number = max(1, hint_number)
 
     definitional_unique = _build_definition_hints(word, desired=10)
+    has_definition = any(
+        hint for hint in definitional_unique
+        if hint and hint != "No definition available."
+    )
 
-    if hint_number <= 10:
+    if hint_number <= 10 and has_definition:
         idx = hint_number - 1
         if idx < len(definitional_unique):
             return definitional_unique[idx]
         return definitional_unique[-1]
+
+    if not has_definition:
+        letter_hints = [
+            f"First letter: {word[0].upper()}.",
+            f"Last letter: {word[-1].upper()}.",
+            f"Second letter: {word[1].upper()}.",
+            f"Pattern: {_masked_with_missing(word, 2)}.",
+            f"Pattern: {_masked_with_missing(word, 3)}.",
+        ]
+        idx = hint_number - 1
+        if idx < len(letter_hints):
+            return letter_hints[idx]
+        return letter_hints[-1]
 
     if hint_number == 11:
         return f"First letter: {word[0].upper()}."
@@ -636,6 +725,88 @@ def generate_hint(word: str, hint_number: int) -> str:
     return "No more hints available."
 
 RESOURCE_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+def _first_letter_hint(word: str) -> str:
+    return f"First letter: {word[0].upper()}."
+
+
+def _last_letter_hint(word: str) -> str:
+    return f"Last letter: {word[-1].upper()}."
+
+
+def _word_length_hint(word: str) -> str:
+    return f"Word length: {len(word)}."
+
+
+def _category_hint(wordpack_name: Optional[str]) -> str:
+    category = wordpack_name or "General"
+    return f"Category: {category}."
+
+
+def _definition_hint(word: str) -> str:
+    hints = _build_definition_hints(word, desired=3)
+    for hint in hints:
+        if hint and hint != "No definition available.":
+            return hint
+    return _word_length_hint(word)
+
+
+def _synonym_hint(word: str) -> str:
+    if WORDNET_AVAILABLE:
+        for syn in wn.synsets(word, pos=wn.NOUN):
+            for lemma in syn.lemmas():
+                name = lemma.name().replace("_", " ")
+                if word.lower() in name.lower():
+                    continue
+                return f"Related word: {name}."
+    return _definition_hint(word)
+
+
+def _vowel_hint(word: str) -> str:
+    positions = [str(i + 1) for i, ch in enumerate(word) if ch in VOWELS]
+    if not positions:
+        return "No vowels in this word."
+    return f"Vowels at positions: {', '.join(positions)}."
+
+
+def _rhyme_hint(word: str) -> str:
+    if len(word) >= 2:
+        return f"Rhymes with a word ending in '-{word[-2:]}'." 
+    return f"Ends with: {word[-1].upper()}."
+
+
+def _common_letter_hint(word: str) -> str:
+    counts = {}
+    for ch in word:
+        counts[ch] = counts.get(ch, 0) + 1
+    letter, count = max(counts.items(), key=lambda item: item[1])
+    return f"Most common letter: {letter.upper()} ({count}x)."
+
+
+def _partial_reveal_hint(word: str) -> str:
+    return f"Pattern: {_masked_with_missing(word, 2)}."
+
+
+def generate_hint_by_type(word: str, hint_type: str, wordpack_name: Optional[str]) -> str:
+    normalized = (hint_type or "").strip().lower()
+    if not normalized:
+        return generate_hint(word, 1)
+    mapping = {
+        "first_letter": _first_letter_hint,
+        "last_letter": _last_letter_hint,
+        "word_length": _word_length_hint,
+        "category": lambda w: _category_hint(wordpack_name),
+        "definition": _definition_hint,
+        "synonym": _synonym_hint,
+        "vowels": _vowel_hint,
+        "rhyme": _rhyme_hint,
+        "letter_count": _common_letter_hint,
+        "partial_reveal": _partial_reveal_hint,
+    }
+    handler = mapping.get(normalized)
+    if handler is None:
+        return generate_hint(word, 1)
+    return handler(word)
 
 def _mock_base_url(source: str) -> str:
     normalized = (source or "").strip().lower()
@@ -667,10 +838,25 @@ async def start_game(request: GameStartRequest):
     conn = get_db_connection()
     try:
         state = get_or_create_game_state(player_name)
-        target = state.start_new_game(player_name, conn)
+        target = state.start_new_game(
+            player_name,
+            conn,
+            request.target_word,
+            request.wordpack_name,
+            request.word_length,
+        )
+        if state.word_source == "external":
+            message = "New game started with external word. Try to guess it."
+        elif state.word_source == "wordpack":
+            message = "New game started with selected wordpack. Try to guess it."
+        else:
+            message = "New game started! Try to guess the word."
         return GameStartResponse(
-            message="New game started! Try to guess the word.",
-            word_length=len(target)
+            message=message,
+            word_length=len(target),
+            session_id=int(state.session_id or 0),
+            word_source=state.word_source,
+            wordpack_name=state.wordpack_name,
         )
     finally:
         conn.close()
@@ -699,6 +885,7 @@ async def make_guess(guess_req: GuessRequest):
         "guess_number": guess_number
     }
     state.guesses.append(guess_data)
+    guesses_for_response = list(state.guesses)
     
     conn = get_db_connection()
     try:
@@ -728,11 +915,14 @@ async def make_guess(guess_req: GuessRequest):
     finally:
         conn.close()
 
+    if is_correct:
+        state.end_game()
+
     return GuessResponse(
         similarity=similarity,
-        all_guesses=state.guesses,
+        all_guesses=guesses_for_response,
         is_correct=is_correct,
-        guesses_count=len(state.guesses)
+        guesses_count=len(guesses_for_response)
     )
 
 
@@ -766,6 +956,8 @@ async def reveal_word(request: RevealRequest):
     finally:
         conn.close()
 
+    state.end_game()
+
     return RevealResponse(
         target_word=target,
         total_guesses=guesses_count,
@@ -782,7 +974,10 @@ async def get_hint(request: HintRequest):
     state.hints_used += 1
 
     hint = None
-    if AI_HINTS_CONFIGURED:
+    hint_type = (request.hint_type or "").strip()
+    if hint_type:
+        hint = generate_hint_by_type(state.target_word, hint_type, state.wordpack_name)
+    if not hint and AI_HINTS_CONFIGURED:
         hint = await generate_ai_hint(state.target_word, state.hints_used, state.hints)
     if not hint:
         hint = generate_hint(state.target_word, state.hints_used)
@@ -806,14 +1001,56 @@ async def get_leaderboard(limit: int = 10):
         cursor = get_db_cursor(conn)
         cursor.execute(
             """
-            SELECT player_name, total_games, games_won, total_guesses, best_score, avg_guesses, win_rate
-            FROM leaderboard
+            SELECT
+                player_name,
+                COUNT(*)::int AS total_games,
+                SUM(CASE WHEN won THEN 1 ELSE 0 END)::int AS games_won,
+                COALESCE(SUM(total_guesses), 0)::int AS total_guesses,
+                COALESCE(MAX(score), 0)::int AS best_score,
+                COALESCE(AVG(total_guesses), 0)::float AS avg_guesses,
+                CASE
+                    WHEN COUNT(*) = 0 THEN 0
+                    ELSE (SUM(CASE WHEN won THEN 1 ELSE 0 END)::float / COUNT(*)::float) * 100
+                END AS win_rate,
+                MAX(end_time) AS last_played
+            FROM game_sessions
+            WHERE end_time IS NOT NULL
+            GROUP BY player_name
             ORDER BY best_score DESC, win_rate DESC, total_games DESC
             LIMIT %s
             """,
-            (limit,)
+            (limit,),
         )
         rows = cursor.fetchall()
+        for row in rows:
+            cursor.execute(
+                """
+                INSERT INTO leaderboard
+                    (player_name, total_games, games_won, total_guesses, best_score, avg_guesses, win_rate, last_played)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (player_name) DO UPDATE SET
+                    total_games = EXCLUDED.total_games,
+                    games_won = EXCLUDED.games_won,
+                    total_guesses = EXCLUDED.total_guesses,
+                    best_score = EXCLUDED.best_score,
+                    avg_guesses = EXCLUDED.avg_guesses,
+                    win_rate = EXCLUDED.win_rate,
+                    last_played = EXCLUDED.last_played
+                """,
+                (
+                    row["player_name"],
+                    row["total_games"],
+                    row["games_won"],
+                    row["total_guesses"],
+                    row["best_score"],
+                    row["avg_guesses"],
+                    row["win_rate"],
+                    row["last_played"],
+                ),
+            )
+        conn.commit()
+        for row in rows:
+            row.pop("last_played", None)
         cursor.close()
         return rows
     finally:

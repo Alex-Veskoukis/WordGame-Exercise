@@ -11,6 +11,7 @@ services:
       - APPSMITH_ENCRYPTION_PASSWORD=${APPSMITH_ENCRYPTION_PASSWORD:-change_this_secure_password_123}
       - APPSMITH_ENCRYPTION_SALT=${APPSMITH_ENCRYPTION_SALT:-change_this_secure_salt_456}
     depends_on:
+      - backend
       - postgres
       - mock-api-1
       - mock-api-2
@@ -46,6 +47,23 @@ services:
       ADMINER_DESIGN: pepa-linha-dark
     depends_on:
       - postgres
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: word-game-backend
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://gameuser:gamepass123@postgres:5432/wordgame}
+      MOCK_API_1_URL: ${MOCK_API_1_URL:-http://mock-api-1:3000}
+      MOCK_API_2_URL: ${MOCK_API_2_URL:-http://mock-api-2:3001}
+      AI_HINTS_ENABLED: ${AI_HINTS_ENABLED:-false}
+    depends_on:
+      - postgres
+      - mock-api-1
+      - mock-api-2
 
   mock-api-2:
     build:

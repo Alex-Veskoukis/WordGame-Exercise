@@ -83,7 +83,6 @@ INSERT INTO favorites (player_name, source, item_type, item_id, item_name, item_
 ('Bob', 'mock-api-2', 'powerups', 1, 'First Letter Reveal', '{"id": 1, "type": "first_letter"}'::jsonb);
 
 INSERT INTO api_logs (player_name, api_name, query, response_payload) VALUES
-('Alice', 'dictionaryapi.dev', 'mountain', '[{"word":"mountain","note":"sample"}]'::jsonb),
-('Bob', 'dictionaryapi.dev', 'computer', '[{"word":"computer","note":"sample"}]'::jsonb);
-
+('Alice', 'random-word-api.herokuapp.com', '8', '["mountain"]'::jsonb),
+('Bob', 'random-word-api.herokuapp.com', '8', '["computer"]'::jsonb);
 
