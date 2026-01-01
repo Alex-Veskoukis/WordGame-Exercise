@@ -1,6 +1,6 @@
 # Student Guide — Understand the Word Game Microservices (Docker Compose + Appsmith)
 
-This guide is written for a student reading the project for the first time. It explains the key terms (Docker, containers, Compose, REST APIs, Appsmith datasources/queries, PostgreSQL tables) and how this system works end‑to‑end to satisfy `apalaktiki_ntinos.pdf`.
+This guide explains the key terms (Docker, containers, Compose, REST APIs, Appsmith datasources/queries, PostgreSQL tables) and how this system works end‑to‑end to satisfy `apalaktiki_ntinos.pdf`.
 
 If you only want the “how do I run it / what do I submit?” instructions, use `README.md`.
 
